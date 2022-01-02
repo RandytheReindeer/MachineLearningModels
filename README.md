@@ -3,8 +3,6 @@
 Randy Kim     randygkim@gmail.com
 
 ## Structure of Repository
-**This repository will contain the following Machine Learnind Models:**
-
 **Supervised Learning**
 
 **Regression**
