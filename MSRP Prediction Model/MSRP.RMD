@@ -1,0 +1,725 @@
+---
+title: "Stats2_Project1"
+author: "Randy Kim"
+date: "9/21/2021"
+output: html_document
+---
+
+# Load libraries and data
+``` {r}
+library(tidyverse)
+library(leaps)
+library(ggplot2)
+library(dplyr)
+library(caret)
+library(corrplot)
+library(GGally)
+library(tibble)
+library(readr)
+library(car)
+library(rgl)
+library(tree)
+library(ISLR)
+library(rattle)
+library(glmnet)
+library(lsmeans)
+
+autos = read.csv(file.choose(), header=TRUE)
+Autos = autos
+head(Autos)
+summary(Autos)
+str(Autos)
+```
+
+# Clean data
+``` {r}
+# Change columns to appropriate variable type
+Autos$Make <- as.factor(Autos$Make)
+Autos$Model <- as.factor(Autos$Model)
+Autos$Year <- as.numeric(Autos$Year)
+Autos$Engine.Fuel.Type <- as.factor(Autos$Engine.Fuel.Type)
+Autos$Engine.HP <- as.numeric(Autos$Engine.HP)
+Autos$Engine.Cylinders <- as.numeric(Autos$Engine.Cylinders)
+Autos$Transmission.Type <- as.factor(Autos$Transmission.Type)
+Autos$Driven_Wheels <- as.factor(Autos$Driven_Wheels)
+Autos$Number.of.Doors <- as.numeric(Autos$Number.of.Doors)
+Autos$Market.Category <- as.factor(Autos$Market.Category)
+Autos$Vehicle.Size <- as.factor(Autos$Vehicle.Size)
+Autos$Vehicle.Style <- as.factor(Autos$Vehicle.Style)
+Autos$highway.MPG <- as.numeric(Autos$highway.MPG)
+Autos$city.mpg <- as.numeric(Autos$city.mpg)
+Autos$Popularity <- as.numeric(Autos$Popularity)
+Autos$MSRP <- as.numeric(Autos$MSRP)
+str(Autos)
+```
+
+# Cleaning data
+``` {r}
+sapply(Autos,function(x) sum(is.na(x)))
+
+# Missing Horsepower for Non-Electrical Cars
+Autos$Engine.HP <- ifelse(Autos$Make == "Lincoln" & Autos$Model == "Continental" 
+                          & Autos$Year == "2017", "305", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Ford" & Autos$Model == "Escape" 
+                          & Autos$Year == "2017", "168", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Ford" & Autos$Model == "Freestar" 
+                          & Autos$Year == "2005" & Autos$Vehicle.Style == "Passenger Minivan", "201", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Ford" & Autos$Model == "Freestar" 
+                          & Autos$Year == "2005" & Autos$Vehicle.Style == "Cargo Minivan", "193", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Chevrolet" & Autos$Model == "Impala" 
+                          & Autos$Year == "2015" & Autos$Engine.Fuel.Type == "flex-fuel (unleaded/natural gas)", "305", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Chevrolet" & Autos$Model == "Impala" 
+                          & Autos$Year == "2016" & Autos$Engine.Fuel.Type == "flex-fuel (unleaded/natural gas)", "305", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Chevrolet" & Autos$Model == "Impala" 
+                          & Autos$Year == "2017" & Autos$Engine.Fuel.Type == "flex-fuel (unleaded/natural gas)", "305", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Mercedes-Benz" & Autos$Model == "M-Class" 
+                          & Autos$Year == "2015" & Autos$Engine.Fuel.Type == "diesel", "240", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Lincoln" & Autos$Model == "MKZ" 
+                          & Autos$Year == "2017", "245", Autos$Engine.HP)
+
+# Missing Horsepower for Electrical Cars
+Autos$Engine.HP <- ifelse(Autos$Make == "FIAT" & Autos$Model == "500e" 
+                          & Autos$Year == "2015", "111", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "FIAT" & Autos$Model == "500e" 
+                          & Autos$Year == "2016", "111", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "FIAT" & Autos$Model == "500e" 
+                          & Autos$Year == "2017", "111", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Honda" & Autos$Model == "Fit EV" 
+                          & Autos$Year == "2013", "123", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Honda" & Autos$Model == "Fit EV" 
+                          & Autos$Year == "2014", "123", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Ford" & Autos$Model == "Focus" 
+                          & Autos$Year == "2015", "160", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Ford" & Autos$Model == "Focus" 
+                          & Autos$Year == "2016", "160", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Ford" & Autos$Model == "Focus" 
+                          & Autos$Year == "2017", "160", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Mitsubishi" & Autos$Model == "i-MiEV" 
+                          & Autos$Year == "2014", "66", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Nissan" & Autos$Model == "Leaf" 
+                          & Autos$Year == "2014", "107", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Nissan" & Autos$Model == "Leaf" 
+                          & Autos$Year == "2015", "107", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Nissan" & Autos$Model == "Leaf" 
+                          & Autos$Year == "2016", "107", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Tesla" & Autos$Model == "Model S" 
+                          & Autos$Year == "2014", "380", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Tesla" & Autos$Model == "Model S" 
+                          & Autos$Year == "2015", "380", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Tesla" & Autos$Model == "Model S" 
+                          & Autos$Year == "2016", "382", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Toyota" & Autos$Model == "RAV4 EV" 
+                          & Autos$Year == "2013", "154", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Toyota" & Autos$Model == "RAV4 EV" 
+                          & Autos$Year == "2014", "154", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Kia" & Autos$Model == "Soul EV" 
+                          & Autos$Year == "2015", "109", Autos$Engine.HP)
+Autos$Engine.HP <- ifelse(Autos$Make == "Kia" & Autos$Model == "Soul EV" 
+                          & Autos$Year == "2016", "109", Autos$Engine.HP)
+
+# Missing Number of Doors
+Autos$Number.of.Doors <- ifelse(Autos$Make == "Tesla" 
+                                & Autos$Model == "Model S" 
+                                & Autos$Year == "2016" , "4", Autos$Number.of.Doors)
+Autos$Number.of.Doors <- ifelse(Autos$Make == "Ferrari" 
+                                & Autos$Model == "FF" 
+                                & Autos$Year == "2013", "2", Autos$Number.of.Doors)
+
+# Missing Engine Cylinders
+sapply(Autos,function(x) sum(is.na(x)))
+
+Autos$Engine.Cylinders <- ifelse(Autos$Engine.Fuel.Type == "electric", "0", 
+                                 Autos$Engine.Cylinders)
+
+# Non-electric cars with missing Engine Cylinders are all same brand and model with different years.
+# Based on the search, they all have 2 cylinders.
+Autos$Engine.Cylinders[is.na(Autos$Engine.Cylinders)] <- 2
+
+Autos$Engine.HP <- as.numeric(Autos$Engine.HP)
+Autos$Engine.Cylinders <- as.numeric(Autos$Engine.Cylinders)
+Autos$Number.of.Doors <- as.numeric(Autos$Number.of.Doors)
+
+# We believe that Audi A6 high mpg was a typo error thus we will replace with average of similar model and year
+Autos$highway.MPG[Autos$highway.MPG == 354] <- 31
+
+# We will set upper price limit to 80k to target customer segment
+Autos = Autos[Autos$MSRP < 80000,]
+
+# We will set lower price limit to 10k as well
+Autos = Autos[Autos$MSRP >= 10000,]
+
+# Eliminate electrical cars
+Autos = Autos[Autos$Engine.Fuel.Type != "electric",]
+
+# Eliminate Transmission direct drive (2 values) as these are electric as well
+Autos = Autos[Autos$Transmission.Type != "DIRECT_DRIVE",]
+Autos = Autos[Autos$Engine.Fuel.Type != "",] # there were 3 empty values
+
+# Eliminate Cylinders above 8
+Autos = Autos[Autos$Engine.Cylinders <= 8,]
+
+# Eliminate Horsepower > 550
+Autos = Autos[Autos$Engine.HP < "550",]
+
+sapply(Autos,function(x) sum(is.na(x)))
+```
+
+Split data
+``` {r}
+# 80% train, 10% test, 10% validation
+set.seed(1234)
+
+splitPerc = 0.8
+index = sample(1:dim(Autos)[1],round(splitPerc *dim(Autos)[1]),replace=F)
+Autos_tr = Autos[index,]
+
+split = 0.5
+testval = Autos[-index,]
+index2 = sample(1:dim(testval)[1], round(split * dim(testval)[1]), replace=F)
+test = testval[index2,]
+val = testval[-index2,]
+
+
+```
+
+Summary Statistics
+``` {r}
+summary(Autos_tr)
+t(aggregate(MSRP~Engine.Cylinders,data=Autos_tr,summary))
+t(aggregate(MSRP~Transmission.Type,data=Autos_tr,summary))
+t(aggregate(MSRP~Driven_Wheels,data=Autos_tr,summary))
+
+```
+
+EDA Graphical Analysis
+``` {r}
+# Histograms
+Autos_tr %>% ggplot(aes(x=MSRP)) + geom_histogram()
+Autos_tr %>% ggplot(aes(x=Engine.HP)) + geom_histogram()
+Autos_tr %>% ggplot(aes(x=Year)) + geom_histogram()
+Autos_tr %>% ggplot(aes(x=Popularity)) + geom_histogram()
+
+# MSRP correlation matrix with continuous variables
+col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+Autos_tr %>% select_if(is.numeric) %>% cor() %>%
+  corrplot(method="color", 
+           col=col(200), 
+           number.digits=2,
+           number.cex=0.75, 
+           type="upper", 
+           order="hclust", 
+           addCoef.col = "black",
+           tl.col="black", 
+           tl.srt=45,
+           sig.level = 0.01, 
+           insig = "blank", 
+           diag=FALSE 
+         )
+
+# scatterplot matrix
+plot(Autos_tr[ , c(3,5,6,13:16)])
+Autos_tr %>% select_if(is.numeric) %>% ggpairs()
+
+# MSRP scatterplots vs continuous variables
+Autos_tr %>% ggplot(aes(x=Popularity, y=MSRP)) + geom_point()
+Autos_tr %>% ggplot(aes(x=Engine.HP, y=MSRP, color = Engine.Cylinders)) + geom_point()
+Autos_tr %>% ggplot(aes(x=Engine.Cylinders, y=MSRP)) + geom_point()
+Autos_tr %>% ggplot(aes(x=Engine.Cylinders, y=Engine.HP)) + geom_point()
+Autos_tr %>% ggplot(aes(x=highway.MPG, y=MSRP)) + geom_point()
+Autos_tr %>% ggplot(aes(x=Year, y=MSRP)) + geom_point()
+Autos_tr %>% ggplot(aes(x=Transmission.Type, y=MSRP)) + geom_point()
+Autos_tr %>% ggplot(aes(x=Driven_Wheels, y=MSRP)) + geom_point()
+
+# For quadratic terms
+plot(Autos_tr$Engine.HP, Autos_tr$MSRP, xlab = "Engine Horsepower", ylab = "MSRP")
+lines(c(0,500),c(0,80000), col="red")
+
+# MSRP boxplots with categorical variables
+Autos_tr %>% ggplot(aes(x=Engine.Fuel.Type, y=MSRP)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+Autos_tr %>% ggplot(aes(x=Make, y=MSRP)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+Autos_tr %>% ggplot(aes(x=Transmission.Type, y=MSRP)) + geom_boxplot() 
+Autos_tr %>% ggplot(aes(x=Driven_Wheels, y=MSRP)) + geom_boxplot() 
+Autos_tr %>% ggplot(aes(x=Vehicle.Size, y=MSRP)) + geom_boxplot() 
+Autos_tr %>% ggplot(aes(x=Engine.Fuel.Type, y=MSRP)) + geom_boxplot() 
+Autos_tr %>% ggplot(aes(x=Vehicle.Style, y=MSRP, color = Vehicle.Style)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+
+# Scatterplots with continuous and categorical variables
+Autos_tr %>% ggplot(aes(x=Engine.HP, y=MSRP), color=Engine.Fuel.Type) + geom_point()
+Autos_tr %>% ggplot(aes(x=Engine.Cylinders, y=Engine.HP), color=Engine.Fuel.Type) + geom_point() # clearly there is a relationship b/w Cylinders and HP
+Autos_tr %>% ggplot(aes(x=Engine.Cylinders, y=MSRP, color = Engine.Fuel.Type)) + geom_point() # as cylinders increases, the need for premium fuel increases which looks to correlate with rising MSRP as well
+Autos_tr %>% ggplot(aes(x=Year, y=MSRP, color = Engine.Fuel.Type)) + geom_point() # similarly, as years have gone by there are more premium fuel cars
+Autos_tr %>% ggplot(aes(x=Year, y=Engine.HP, color = Engine.Cylinders)) + geom_point() # there also appears to be an upward slope with Engine HP over time
+
+```
+
+# Popularity Test
+``` {r}
+Pop.test<-lm(log(MSRP) ~ Popularity, data=Autos_tr)
+par(mfrow=c(2,2))
+plot(Pop.test)
+summary(Pop.test)
+```
+
+# Simple MLR Modeling
+``` {r}
+# Before transformation
+MLR.model5<-lm(MSRP ~ Engine.HP + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size + Popularity, data=Autos_tr)
+par(mfrow=c(2,2))
+plot(MLR.model5)
+summary(MLR.model5)
+vif(MLR.model5)
+
+# After transformation
+MLR.model5<-lm(log(MSRP) ~ log(Engine.HP) + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size + Popularity, data=Autos_tr)
+par(mfrow=c(2,2))
+plot(MLR.model5)
+summary(MLR.model5)
+vif(MLR.model5)
+Confint(MLR.model5, level = 0.95)
+
+```
+
+Complex MLR Model Building
+```{r}
+# 2 way anova
+###########################################
+model.fit = aov(log(MSRP) ~ log(Engine.HP) + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size,data=Autos_tr)
+TukeyHSD(model.fit, "Engine.Fuel.Type:Drive_Wheels", conf.level=0.95)
+TukeyHSD(model.fit, "Engine.HP", conf.level=0.95)
+TukeyHSD(model.fit, "Driven_Wheels:Vehicle.Size", conf.level=0.95)
+TukeyHSD(model.fit, "Vehicle.Size", conf.level=0.95)
+
+#################################################
+# Interaction - Driven Wheels & Vehicle Size
+attach(Autos_tr)
+mysummary<-function(x){
+  result<-c(length(x),mean(x),sd(x),sd(x)/length(x),min(x),max(x),IQR(x))
+  names(result)<-c("N","Mean","SD","SE","Min","Max","IQR")
+  return(result)
+}
+sumstats<-aggregate(MSRP~Driven_Wheels*Vehicle.Size,data=Autos_tr,mysummary)
+sumstats<-cbind(sumstats[,1:2],sumstats[,-(1:2)])
+sumstats
+
+library(ggplot2)
+ggplot(sumstats,aes(x=Driven_Wheels,y=Mean,group=Vehicle.Size,colour=Vehicle.Size))+
+  ylab("MSRP")+
+  geom_line()+
+  geom_point()+
+  geom_errorbar(aes(ymin=Mean-SD,ymax=Mean+SD),width=.1)
+
+model.fit1<-aov(MSRP ~ Driven_Wheels+Vehicle.Size+Driven_Wheels:Vehicle.Size,data=Autos_tr)
+par(mfrow=c(1,2))
+plot(model.fit1$fitted.values,model.fit1$residuals,ylab="Resdiduals",xlab="Fitted")
+qqnorm(model.fit1$residuals)
+
+library(car)
+Anova(model.fit1,type=3)
+```
+
+``` {r}
+#####################################
+Autos_tr %>% ggplot(aes(x=Engine.HP, y=MSRP, color=Engine.Fuel.Type)) + geom_point()
+Autos_tr %>% ggplot(aes(x=log(Engine.HP), y=log(MSRP), color=Engine.Fuel.Type)) + geom_point()
+Autos_tr %>% ggplot(aes(x=Engine.HP, y=log(MSRP), color=Engine.Fuel.Type)) + geom_point()
+Autos_tr %>% ggplot(aes(x=Engine.HP, y=sqrt(MSRP), color=Engine.Fuel.Type)) + geom_point()
+
+# final complex MLR model
+MLR.model15<-lm(log(MSRP) ~ log(Engine.HP) + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size + Popularity + Engine.HP:Driven_Wheels + Vehicle.Size:Driven_Wheels + Engine.HP:Vehicle.Size, data=Autos_tr)
+par(mfrow=c(2,2))
+plot(MLR.model15)
+summary(MLR.model15)
+vif(MLR.model15)
+
+```
+
+```{r, echo=T}
+reg.fwd = regsubsets(log(MSRP) ~ log(Engine.HP) + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size + Popularity + Engine.HP:Driven_Wheels + Vehicle.Size:Driven_Wheels + Engine.HP:Vehicle.Size, data=Autos_tr, method="forward", nvmax = 20)
+
+summary(reg.fwd)
+summary(reg.fwd)$adjr2
+summary(reg.fwd)$rss
+summary(reg.fwd)$bic
+summary(reg.fwd)$cp
+
+par(mfrow=c(1,2))
+bics = summary(reg.fwd)$bic
+plot(1:21, bics, type="l", ylab="BIC", xlab="# of predictors")
+index = which(bics == min(bics))
+points(index, bics[index], col="red", pch=10)
+
+adjr2 = summary(reg.fwd)$adjr2
+plot(1:21, adjr2, type="l", ylab="Adjusted R-squared", xlab="# of predictors")
+index = which(adjr2 ==max(adjr2))
+points(index,adjr2[index], col="red",pch=10)
+
+rss = summary(reg.fwd)$rss
+plot(1:21, rss, type="l", ylab="train RSs", xlab = "# of predictors")
+index = which(rss==min(rss))
+points(index, rss[index], col="red", pch=10)
+
+cp = summary(reg.fwd)$cp
+plot(1:21, cp, type="l", ylab="train Cp", xlab = "# of predictors")
+index = which(cp==min(cp))
+points(index, cp[index], col="red", pch=10)
+
+predict.regsubsets =function (object , newdata ,id ,...){
+  form=as.formula (object$call [[2]])
+  mat=model.matrix(form ,newdata )
+  coefi=coef(object ,id=id)
+  xvars=names(coefi)
+  mat[,xvars]%*%coefi
+}
+
+testASE = c()
+for (i in 1:21){
+  predictions = predict.regsubsets(object=reg.fwd, newdata = test, id=i)
+  testASE[i] = mean((log(test$MSRP)-predictions)^2)
+}
+par(mfrow = c(1,1))
+plot(1:21, testASE, type="l", xlab = "# of predictors", ylab = "test vs train ASE", ylim = c(0.001,0.05))
+index = which(testASE==min(testASE))
+points(index, testASE[index], col = "red", pch=10)
+rss=summary(reg.fwd)$rss
+lines(1:21, rss/7371, lty=3, col="blue")
+
+
+### Final Model
+reg.final = regsubsets(log(MSRP) ~ log(Engine.HP) + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size +
+                       Engine.HP:Driven_Wheels + Vehicle.Size:Driven_Wheels + Engine.HP:Vehicle.Size, data=Autos_tr, method="forward", nvmax = 20)
+coef(reg.final,20)
+final.model<-lm(log(MSRP) ~ log(Engine.HP) + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size +
+                       Engine.HP:Driven_Wheels + Vehicle.Size:Driven_Wheels + Engine.HP:Vehicle.Size, data=Autos_tr)
+
+plot(exp(final.model$fitted.values),Autos_tr$MSRP,xlab="Predicted",ylab="MSRP",xlim=c(0,90000),ylim=c(0,90000))
+lines(c(0,90000),c(0,90000),col="red")
+
+summary(final.model)
+par(mfrow=c(2,2))
+plot(final.model)
+vif(final.model)
+```
+
+
+```{r}
+#####################################################
+# k-nn Model building and validation testing 10 fold CV to choose k
+fitControl<-trainControl(method="repeatedcv",number=10,repeats=10) #number is the k in k-fold
+
+#only continuous predictors
+set.seed(1234)
+knn.fit<-train(log(MSRP) ~ log(Engine.HP) + Year + highway.MPG + Popularity,data=Autos_tr,method="knn",preProcess = c("center","scale"),trControl=fitControl, tuneGrid=data.frame(k=c(1:10,15,20,25,30)))
+
+#Lets look at the CV result
+knn.fit
+plot(knn.fit)
+
+#Making predictions on the validation set
+knn.pred<-predict(knn.fit,val)
+knn.pred
+
+#Computing Errror Metrics
+knn.validate<-postResample(pred=knn.pred,obs=log(val$MSRP))
+knn.validate
+plot(knn.pred,log(val$MSRP), ylab="log(MSRP)", xlab="predictor")
+lines(9:12,9:12, col = "red")
+
+#Ranking predictors
+varImp(knn.fit)
+plot(varImp(knn.fit))
+
+rmse.knn  <- sqrt(mean((log(val$MSRP) - knn.pred)^2))
+rmse.knn
+
+ase.knn  <- (mean((log(val$MSRP) - knn.pred)^2))
+ase.knn
+
+
+#########################################
+# simple MLR validation
+reg.SMLR = regsubsets(log(MSRP) ~ log(Engine.HP) + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size + Popularity, data=Autos_tr, method="forward", nvmax = 5)
+
+SMLR<-lm(log(MSRP) ~ log(Engine.HP) + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size, data=val)
+par(mfrow=c(2,2))
+plot(SMLR)
+summary(SMLR)
+vif(SMLR)
+summary(SMLR)
+
+rss = summary(reg.SMLR)$rss
+predict.SMLR =function (object , newdata ,id ,...){
+  form=as.formula (object$call [[2]])
+  mat=model.matrix(form ,newdata )
+  coefi=coef(object ,id=id)
+  xvars=names(coefi)
+  mat[,xvars]%*%coefi
+}
+
+testASE = c()
+for (i in 1:5){
+  predictions = predict.SMLR(object=reg.SMLR, newdata = val, id=i)
+  testASE[i] = mean((log(val$MSRP)-predictions)^2)
+}
+par(mfrow = c(1,1))
+plot(1:5, testASE, type="l", xlab = "# of predictors", ylab = "test vs train ASE", ylim = c(0.001,0.05))
+index = which(testASE==min(testASE))
+points(index, testASE[index], col = "red", pch=10)
+rss=summary(reg.SMLR)$rss
+lines(1:6, rss/921, lty=3, col="blue")
+
+min(testASE)
+
+RSS <- c(crossprod(SMLR$residuals))
+MSE <- RSS / length(SMLR$residuals)
+RMSE <- sqrt(MSE)
+RMSE
+
+SMLRpred <- SMLR %>% predict(val)
+RMSE(SMLRpred,val$MSRP)
+
+
+#################################################
+# complex MLR validation
+reg.CMLR = regsubsets(log(MSRP) ~ log(Engine.HP) + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size +
+                       Engine.HP:Driven_Wheels + Vehicle.Size:Driven_Wheels + Engine.HP:Vehicle.Size, data=Autos_tr, method="forward", nvmax = 20)
+
+CMLR<-lm(log(MSRP) ~ log(Engine.HP) + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size +
+                       Engine.HP:Driven_Wheels + Vehicle.Size:Driven_Wheels + Engine.HP:Vehicle.Size, data=val)
+par(mfrow=c(2,2))
+plot(CMLR)
+summary(CMLR)
+vif(CMLR)
+
+rss = summary(reg.CMLR)$rss
+predict.CMLR =function (object , newdata ,id ,...){
+  form=as.formula (object$call [[2]])
+  mat=model.matrix(form ,newdata )
+  coefi=coef(object ,id=id)
+  xvars=names(coefi)
+  mat[,xvars]%*%coefi
+}
+
+testASE = c()
+for (i in 1:21){
+  predictions = predict.CMLR(object=reg.CMLR, newdata = val, id=i)
+  testASE[i] = mean((log(val$MSRP)-predictions)^2)
+}
+par(mfrow = c(1,1))
+plot(1:21, testASE, type="l", xlab = "# of predictors", ylab = "test vs train ASE", ylim = c(0.001,0.05))
+index = which(testASE==min(testASE))
+points(index, testASE[index], col = "red", pch=10)
+rss=summary(reg.CMLR)$rss
+lines(1:21, rss/921, lty=3, col="blue")
+
+min(testASE)
+
+RSS <- c(crossprod(CMLR$residuals))
+MSE <- RSS / length(CMLR$residuals)
+RMSE <- sqrt(MSE)
+RMSE
+
+CMLRpred <- CMLR %>% predict(val)
+RMSE(CMLRpred,val$MSRP)
+
+
+```
+
+
+
+
+
+other code
+``` {r}
+###########################
+knn_train <- Autos_tr[,c(3,5,13,15,16)]
+summary(knn_train)
+knn_test <- test[,c(3,5,13,15,16)]
+summary(knn_test)
+knn_val <- val[,c(3,5,13,15,16)]
+summary(knn_val)
+
+knn_model <- knn.reg(knn_train, test = knn_val, y=knn_train$MSRP, k =1)
+str(knn_model)
+mse.knn  <- (mean((knn_val$MSRP - knn_model$pred)^2))
+mse.knn
+
+
+
+# test ASE using validation data set - knn
+predict.knn =function (object , newdata ,id ,...){
+  form=as.formula (object$call [[2]])
+  mat=model.matrix(form ,newdata )
+  coefi=coef(object ,id=id)
+  xvars=names(coefi)
+  mat[,xvars]%*%coefi
+}
+
+testASE = c()
+for (i in 1:10){
+  predictions = predict.knn(object=knn.fit, newdata = val, id=i)
+  testASE[i] = mean(((val$MSRP)-predictions)^2)
+}
+par(mfrow = c(1,1))
+plot(1:21, testASE, type="l", xlab = "# of predictors", ylab = "test vs train ASE", ylim = c(0.001,0.05))
+index = which(testASE==min(testASE))
+points(index, testASE[index], col = "red", pch=10)
+rss=summary(knn.fit)$rss
+lines(1:21, rss/7371, lty=3, col="blue")
+
+```
+
+
+# export data sets to csv
+write.csv(Autos_tr,"C:/Users/Team Reed/OneDrive/JEFF/SMU/Stats 2/Files\\Autos_tr.csv", row.names = FALSE)
+write.csv(test,"C:/Users/Team Reed/OneDrive/JEFF/SMU/Stats 2/Files\\test.csv", row.names = FALSE)
+write.csv(val,"C:/Users/Team Reed/OneDrive/JEFF/SMU/Stats 2/Files\\val.csv", row.names = FALSE)
+
+#### clean data for knn
+str(Autos_tr)
+# convert Vehicle size into numeric
+V.Size <- ifelse(Autos_tr$Vehicle.Size == "Large",1,ifelse(Autos_tr$Vehicle.Size =="Midsize",2,3))
+Autos_tr <- cbind(Autos_tr,V.Size)
+summary(Autos_tr)
+V.Size <- ifelse(test$Vehicle.Size == "Large",1,ifelse(test$Vehicle.Size =="Midsize",2,3))
+test <- cbind(test,V.Size)
+summary(test)
+V.Size <- ifelse(val$Vehicle.Size == "Large",1,ifelse(val$Vehicle.Size =="Midsize",2,3))
+val <- cbind(val,V.Size)
+summary(val)
+
+
+
+
+``` {r} 
+#Since some methods like LASSO have a tuning parameter, we will perform K fold CV to
+#to determine the best model.  To start off using Caret, we need to setup 
+#the details for CV.  
+
+fitControl<-trainControl(method="repeatedcv",number=10,repeats=10) #number is the k in k-fold
+
+#GLM Net Model (selecting tuning parameters alpha and lambda via 10 FOLD CV)
+set.seed(1234)
+glmnet.fit<-train(MSRP ~ Engine.HP + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size + Transmission.Type + Vehicle.Style + highway.MPG,data=Autos_tr,method="glmnet",trControl=fitControl)
+
+#Lets look at the results of what this model has decided on
+glmnet.fit
+#Here we can see exactly what the estimated f(x) looks like.
+coef(glmnet.fit$finalModel,glmnet.fit$finalModel$lambdaOpt)
+
+#Lets take a look at how well the predictions look by calculating the test RMSE as well as simple plotting strategy.
+glmnet.pred<-predict(glmnet.fit,test)
+glmnet.RMSE<-sqrt(mean((test$MSRP-glmnet.pred)^2))
+plot(glmnet.pred,test$MSRP,ylim=c(0,85000),xlim=c(0,85000))
+lines(0:85000,0:85000)
+glmnet.RMSE
+
+#Here is a more natural tool to compute RMSE as well as some additional metrics
+glmnet.validate<-postResample(pred = glmnet.pred, obs = test$MSRP)                
+glmnet.validate
+
+#Ranking of the predictors
+varImp(glmnet.fit)
+nrow(varImp(glmnet.fit)$importance) # variables extracted
+plot(varImp(glmnet.fit))
+
+summary(glmnet.fit)
+```
+
+
+
+``` {r}
+##LASSO calls
+There are no homework questions involving this section but it is here for the sake of your project.  Performing a lasso call is pretty straight forward.  GLM-NET performs 10-fold CV to determine an optimal penalty parameter.  The coefficients are easy to extract and making predictions are straight forward.  It is possible to make ASE style plots like we did previously but it takes a little extra programming. See me if interested.
+
+```{r,echo=T}
+library(glmnet)
+#Formatting data for GLM net
+x=model.matrix(MSRP ~ Engine.HP + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size + Transmission.Type + Vehicle.Style + highway.MPG + Popularity,Autos_tr)[,-1]
+y=log(Autos_tr$MSRP)
+
+xtest<-model.matrix(MSRP ~ Engine.HP + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size + Transmission.Type + Vehicle.Style + highway.MPG,test)[,-1]
+ytest<-log(test$MSRP)
+
+grid=10^seq(10,-2, length =100)
+lasso.mod=glmnet(x,y,alpha=1, lambda =grid)
+
+cv.out=cv.glmnet(x,y,alpha=1) #alpha=1 performs LASSO
+plot(cv.out)
+bestlambda<-cv.out$lambda.min  #Optimal penalty parameter.  You can make this call visually.
+lasso.pred=predict (lasso.mod ,s=bestlambda ,newx=xtest)
+
+testMSE_LASSO<-mean((ytest-lasso.pred)^2)
+testMSE_LASSO
+
+
+lasso.coef <- predict(lasso.mod,type='coefficients',s=bestlambda)
+lasso.coef
+summary(lasso.mod)
+summary(lasso.mod)$adjr2
+```
+
+Other non parametric models if needed
+``` {r}
+################################################
+#Stepwise Regression Using the AIC metric  NO CV
+set.seed(1234)
+stepwise.fit<-train(MSRP ~ Engine.HP + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size + Transmission.Type + Vehicle.Style + highway.MPG ,data=Autos_tr, method="glmStepAIC",direction="backward",trace=0, trControl=fitControl)
+
+stepwise.fit
+
+#If you want the coefficients
+stepwise.fit$finalModel
+
+#Making predictions on the test set
+stepwise.pred<-predict(stepwise.fit,test)
+
+#Computing Error Metrics
+stepwise.validate<-postResample(pred=stepwise.pred,obs=test$MSRP)
+stepwise.validate
+
+plot(stepwise.pred,test$MSRP)
+lines(0:2000,0:2000)
+
+#Ranking of predictors
+varImp(stepwise.fit)
+plot(varImp(stepwise.fit))
+
+```
+
+``` {r}
+###################################################
+#Tree Model while choosing complexity parameter via 10 fold CV
+set.seed(1234)
+tree.fit<-train(MSRP ~ Engine.HP + Year + Engine.Fuel.Type + Driven_Wheels + Vehicle.Size + highway.MPG + Popularity, data=Autos_tr,
+                    method="rpart",minsplit=5,
+                    trControl=fitControl,
+                tuneGrid=data.frame(cp=c(.005,.0008,.01,.015,.02,.025,.03,.035,.04,.05,.06,.07,.08,.09,.25,.4))
+)
+
+#Lets look at the CV result
+tree.fit
+
+#If we want the final model tree
+plot(tree.fit$finalModel)
+text(tree.fit$finalModel)
+
+#prettier tree
+fancyRpartPlot(tree.fit$finalModel)
+
+#Making predictions on the validation set
+tree.pred<-predict(tree.fit,val)
+tree.pred
+
+#Computing Errror Metrics
+tree.validate<-postResample(pred=tree.pred,obs=val$MSRP)
+tree.validate
+
+plot(tree.pred,test$MSRP)
+lines(0:2000,0:2000)
+
+#Ranking predictors
+varImp(tree.fit)
+plot(varImp(tree.fit))
+
+```
+
