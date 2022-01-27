@@ -23,6 +23,7 @@ Randy Kim     randygkim@gmail.com
 - Feature Selection
 - PCA
 
+**  **
 - Sklearn Pipelines
 - Hyperparameter Tuning GridSearchCV
 
